@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import type { WasteFilters, WasteItemTotal, WasteWeeklyItem, EightySixEvent } from './types'
+import type { WasteFilters, WasteItemTotal, WasteWeeklyItem, EightySixEvent, LaborSnapshot, EfficiencySnapshot } from './types'
 import { getWeekEnd, shiftWeek } from '@/lib/weeks'
 import { formatShortDate, formatTime12h } from '@/lib/format'
 
