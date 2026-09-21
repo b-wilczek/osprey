@@ -31,3 +31,24 @@ export function formatShortDate(dateStr: string): string {
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
 }
+
+/**
+ * Formats a 'YYYY-MM-DD' date string as e.g. 'Aug 17' — same UTC-parsing
+ * reasoning as formatShortDate, just without the weekday, for contexts
+ * (like chart axis labels) where the extra width doesn't fit.
+ */
+export function formatMonthDay(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, d))
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+}
+
+/**
+ * Formats a 'YYYY-MM-DD' date string as 'MM/DD/YYYY'. Pure string
+ * reordering, no Date object involved — the input is always already
+ * zero-padded, so there's no timezone-parsing pitfall to avoid.
+ */
+export function formatSlashDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-')
+  return `${m}/${d}/${y}`
+}

@@ -22,10 +22,10 @@ export function EightySixSnapshotCard({ data }: EightySixSnapshotCardProps) {
               <thead className="sticky top-0 z-10">
                 <tr>
                   <th className="border-b-2 border-gray-200 bg-white px-3 py-2 text-left font-medium text-gray-600">
-                    Date
+                    Item
                   </th>
                   <th className="border-b-2 border-gray-200 bg-white px-3 py-2 text-left font-medium text-gray-600">
-                    Item
+                    Date
                   </th>
                   <th className="border-b-2 border-gray-200 bg-white px-3 py-2 text-right font-medium text-gray-600">
                     86'd At
@@ -35,14 +35,14 @@ export function EightySixSnapshotCard({ data }: EightySixSnapshotCardProps) {
               <tbody>
                 {data.map((event, i) => (
                   <tr
-                    key={`${event.reportDate}-${event.itemName}-${i}`}
+                    key={`${event.itemName}-${event.reportDate}-${i}`}
                     className="hover:bg-gray-50"
                   >
-                    <td className="border-b border-gray-100 px-3 py-2 text-gray-600 whitespace-nowrap">
+                    <td className="border-b border-gray-100 px-3 py-2">{event.itemName}</td>
+                    <td className="border-b border-gray-100 px-3 py-2 whitespace-nowrap">
                       {event.dateDisplay}
                     </td>
-                    <td className="border-b border-gray-100 px-3 py-2 text-gray-600">{event.itemName}</td>
-                    <td className="border-b border-gray-100 px-3 py-2 text-gray-600 text-right whitespace-nowrap">
+                    <td className="border-b border-gray-100 px-3 py-2 text-right whitespace-nowrap">
                       {event.timeDisplay}
                     </td>
                   </tr>

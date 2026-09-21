@@ -14,6 +14,9 @@ export interface WasteWeeklyItem {
   thisWeekTotal: number
   lastWeekTotal: number
   diff: number // thisWeekTotal - lastWeekTotal; negative = down vs. last week
+  dollarLost: number | null // thisWeekTotal × Food Items price for this
+                             // location; null only if thisWeekTotal > 0 and
+                             // no matching price was found
 }
 
 export interface EightySixEvent {
@@ -33,4 +36,12 @@ export interface EfficiencySnapshot {
   salesPerLaborHour: number | null // null if total labor hours are 0
   revenueFactor: number | null // null if total labor cost is 0
   hasNullCost: boolean // from getLaborSnapshot — drives the Revenue Factor asterisk
+}
+
+export interface RevenueTrendPoint {
+  weekStart: string // Monday, 'YYYY-MM-DD'
+  weekLabel: string // e.g. 'Aug 17'
+  totalSales: number
+  ticketCount: number
+  ticketAvg: number | null // null if there were no tickets with a real (non-$0, non-NULL) total
 }
