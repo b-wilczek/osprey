@@ -1,4 +1,4 @@
-import type { RowError, TimesheetRow } from './timesheet/types'
+import type { RowError, TimesheetRow } from './types'
 
 export const REQUIRED_HEADERS = [
   'Display Name',
