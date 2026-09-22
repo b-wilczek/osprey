@@ -36,6 +36,10 @@ export default async function DashboardPage({
       <div className="grid gap-6">
         {location ? (
           <>
+            <Suspense fallback={<p>Loading revenue snapshot...</p>}>
+              <RevenueSnapshotCardServer weekStart={weekStart} location={location} />
+            </Suspense>
+
             <Suspense fallback={<p>Loading 86 snapshot...</p>}>
               <EightySixSnapshotCardServer weekStart={weekStart} location={location} />
             </Suspense>
@@ -46,10 +50,6 @@ export default async function DashboardPage({
 
             <Suspense fallback={<p>Loading labor snapshot...</p>}>
               <LaborSnapshotCardServer weekStart={weekStart} location={location} />
-            </Suspense>
-
-            <Suspense fallback={<p>Loading revenue snapshot...</p>}>
-              <RevenueSnapshotCardServer weekStart={weekStart} location={location} />
             </Suspense>
 
             <Suspense fallback={<p>Loading efficiency snapshot...</p>}>
