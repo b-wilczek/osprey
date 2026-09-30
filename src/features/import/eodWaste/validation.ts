@@ -40,10 +40,11 @@ function parseNumber(value: string | undefined): number | null {
   return Number.isNaN(n) ? null : n
 }
 
-// Handles TRUE/FALSE, true/false, and blank (treated as false) --
-// adjust here if a real export uses something else (e.g. "Yes"/"No").
+// Real export uses "Yes"/"No". TRUE/FALSE is still accepted in case a
+// future export or manual file uses it. Blank or anything else = false.
 function parseBoolean(value: string | undefined): boolean {
-  return value?.trim().toUpperCase() === 'TRUE'
+  const v = value?.trim().toUpperCase()
+  return v === 'YES' || v === 'TRUE'
 }
 
 // Everything outside REQUIRED_HEADERS is optional pass-through -- blank

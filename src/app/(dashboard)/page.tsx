@@ -36,9 +36,23 @@ export default async function DashboardPage({
       <div className="grid gap-6">
         {location ? (
           <>
-            <Suspense fallback={<p>Loading revenue snapshot...</p>}>
-              <RevenueSnapshotCardServer weekStart={weekStart} location={location} />
-            </Suspense>
+            {/* Revenue, Labor, Efficiency: 1 column on phones/narrow
+                windows, 2 from md (768px), 3 from xl (1280px). Experimental
+                — see how this looks before applying the same pattern to
+                the cards below. */}
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+              <Suspense fallback={<p>Loading revenue snapshot...</p>}>
+                <RevenueSnapshotCardServer weekStart={weekStart} location={location} />
+              </Suspense>
+
+              <Suspense fallback={<p>Loading labor snapshot...</p>}>
+                <LaborSnapshotCardServer weekStart={weekStart} location={location} />
+              </Suspense>
+
+              <Suspense fallback={<p>Loading efficiency snapshot...</p>}>
+                <EfficiencySnapshotCardServer weekStart={weekStart} location={location} />
+              </Suspense>
+            </div>
 
             <Suspense fallback={<p>Loading 86 snapshot...</p>}>
               <EightySixSnapshotCardServer weekStart={weekStart} location={location} />
@@ -46,14 +60,6 @@ export default async function DashboardPage({
 
             <Suspense fallback={<p>Loading waste snapshot...</p>}>
               <WasteSnapshotCardServer weekStart={weekStart} location={location} />
-            </Suspense>
-
-            <Suspense fallback={<p>Loading labor snapshot...</p>}>
-              <LaborSnapshotCardServer weekStart={weekStart} location={location} />
-            </Suspense>
-
-            <Suspense fallback={<p>Loading efficiency snapshot...</p>}>
-              <EfficiencySnapshotCardServer weekStart={weekStart} location={location} />
             </Suspense>
           </>
         ) : (

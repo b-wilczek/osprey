@@ -1,4 +1,4 @@
-import { getEfficiencySnapshot } from '../queries'
+import { getEfficiencyTrend } from '../queries'
 import { EfficiencySnapshotCard } from './EfficiencySnapshotCard'
 
 export async function EfficiencySnapshotCardServer({
@@ -8,6 +8,6 @@ export async function EfficiencySnapshotCardServer({
   weekStart: string
   location: string
 }) {
-  const data = await getEfficiencySnapshot({ weekStart, location })
-  return <EfficiencySnapshotCard data={data} />
+  const trend = await getEfficiencyTrend({ weekStart, location })
+  return <EfficiencySnapshotCard trend={trend} />
 }

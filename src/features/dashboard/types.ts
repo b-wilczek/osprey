@@ -32,10 +32,26 @@ export interface LaborSnapshot {
   hasNullCost: boolean // true if any matching row's cost was NULL
 }
 
+export interface LaborTrendPoint {
+  weekStart: string // Monday, 'YYYY-MM-DD'
+  weekLabel: string // e.g. 'Aug 17'
+  totalHours: number
+  totalCost: number
+  hasNullCost: boolean
+}
+
 export interface EfficiencySnapshot {
   salesPerLaborHour: number | null // null if total labor hours are 0
   revenueFactor: number | null // null if total labor cost is 0
   hasNullCost: boolean // from getLaborSnapshot — drives the Revenue Factor asterisk
+}
+
+export interface EfficiencyTrendPoint {
+  weekStart: string // Monday, 'YYYY-MM-DD'
+  weekLabel: string // e.g. 'Aug 17'
+  salesPerLaborHour: number | null
+  revenueFactor: number | null
+  hasNullCost: boolean
 }
 
 export interface RevenueTrendPoint {
@@ -45,3 +61,4 @@ export interface RevenueTrendPoint {
   ticketCount: number
   ticketAvg: number | null // null if there were no tickets with a real (non-$0, non-NULL) total
 }
+

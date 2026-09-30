@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getWeekEnd, shiftWeek } from '@/lib/weeks'
 import { formatShortDate, formatTime12h, formatMonthDay } from '@/lib/format'
+import { cache } from 'react'
 import type {
   WasteFilters,
   WasteItemTotal,
@@ -9,7 +10,11 @@ import type {
   LaborSnapshot,
   EfficiencySnapshot,
   RevenueTrendPoint,
+  LaborTrendPoint,
+  EfficiencyTrendPoint
 } from './types'
+
+const CMU_LOCATIONS = ['CMU-Hunt', 'CMU-Resnik']
 
 export async function getWasteTotals({
   startDate,
@@ -194,49 +199,79 @@ export async function getEightySixSnapshot({
   }))
 }
 
-export async function getLaborSnapshot({
+// (2026-09-27) Wrapped in cache() so a second call with the same
+// (weekStart, location) during the same server render -- e.g. from both
+// this card's own trend and Efficiency Snapshot's trend -- reuses the
+// first call's in-flight result instead of re-querying Supabase. Same
+// reasoning, and the same positional-args requirement, as Revenue
+// Snapshot's getRevenueSnapshot -- see that guide's 2026-09-27 update
+// note for the full explanation.
+export const getLaborSnapshot = cache(
+  async (weekStart: string, location: string): Promise<LaborSnapshot> => {
+    const supabase = await createClient()
+
+    const weekEnd = getWeekEnd(weekStart)
+
+    const { data, error } = await supabase
+      .from('timesheet_data')
+      .select('total_hours, cost, is_leave')
+      .eq('location', location)
+      .gte('timesheet_date', weekStart)
+      .lte('timesheet_date', weekEnd)
+
+    if (error) {
+      console.error('getLaborSnapshot failed:', error.message)
+      return { totalHours: 0, totalCost: 0, hasNullCost: false }
+    }
+
+    let totalHours = 0
+    let totalCost = 0
+    let hasNullCost = false
+
+    for (const row of data ?? []) {
+      if (row.is_leave === true) continue // fallback — shouldn't normally have a location at all
+
+      totalHours += Number(row.total_hours ?? 0)
+
+      if (row.cost === null || row.cost === undefined) {
+        hasNullCost = true
+      } else {
+        totalCost += Number(row.cost)
+      }
+    }
+
+    return { totalHours, totalCost, hasNullCost }
+  }
+)
+
+// (2026-09-27) Same pattern as getRevenueTrend: 5 weeks (current + 4
+// prior), fetched in parallel by calling the already-tested
+// getLaborSnapshot once per week rather than writing a new combined
+// range query. getLaborSnapshot is called positionally now (see above).
+export async function getLaborTrend({
   weekStart,
   location,
 }: {
-  weekStart: string // Monday, 'YYYY-MM-DD'
+  weekStart: string // Monday, 'YYYY-MM-DD' — the most recent (current) week
   location: string
-}): Promise<LaborSnapshot> {
-  const supabase = await createClient()
+}): Promise<LaborTrendPoint[]> {
+  // oldest → newest: 4 weeks ago, 3 weeks ago, ..., the current week last
+  const weekStarts = [4, 3, 2, 1, 0].map((weeksAgo) => shiftWeek(weekStart, -weeksAgo))
 
-  const weekEnd = getWeekEnd(weekStart)
+  const weeks = await Promise.all(
+    weekStarts.map((ws) => getLaborSnapshot(ws, location))
+  )
 
-  const { data, error } = await supabase
-    .from('timesheet_data')
-    .select('total_hours, cost, is_leave')
-    .eq('location', location)
-    .gte('timesheet_date', weekStart)
-    .lte('timesheet_date', weekEnd)
-
-  if (error) {
-    console.error('getLaborSnapshot failed:', error.message)
-    return { totalHours: 0, totalCost: 0, hasNullCost: false }
-  }
-
-  let totalHours = 0
-  let totalCost = 0
-  let hasNullCost = false
-
-  for (const row of data ?? []) {
-    if (row.is_leave === true) continue // fallback — shouldn't normally have a location at all
-
-    totalHours += Number(row.total_hours ?? 0)
-
-    if (row.cost === null || row.cost === undefined) {
-      hasNullCost = true
-    } else {
-      totalCost += Number(row.cost)
-    }
-  }
-
-  return { totalHours, totalCost, hasNullCost }
+  return weekStarts.map((ws, i) => ({
+    weekStart: ws,
+    weekLabel: formatMonthDay(ws),
+    totalHours: weeks[i].totalHours,
+    totalCost: weeks[i].totalCost,
+    hasNullCost: weeks[i].hasNullCost,
+  }))
 }
 
-const CMU_LOCATIONS = ['CMU-Hunt', 'CMU-Resnik']
+
 
 // Same reasoning as EightySixRow above — explicit shape for the aggregating
 // views' single column so `.reduce()`'s callback parameter doesn't get
@@ -245,35 +280,31 @@ interface DailySalesRow {
   total_sales: number | string | null
 }
 
-export async function getRevenueSnapshot({
-  weekStart,
-  location,
-}: {
-  weekStart: string // Monday, 'YYYY-MM-DD'
-  location: string
-}): Promise<number> {
-  const supabase = await createClient()
+export const getRevenueSnapshot = cache(
+  async (weekStart: string, location: string): Promise<number> => {
+    const supabase = await createClient()
 
-  const weekEnd = getWeekEnd(weekStart)
-  const view = CMU_LOCATIONS.includes(location) ? 'cmu_daily_sales' : 'square_daily_sales'
+    const weekEnd = getWeekEnd(weekStart)
+    const view = CMU_LOCATIONS.includes(location) ? 'cmu_daily_sales' : 'square_daily_sales'
 
-  const { data, error } = await supabase
-    .from(view)
-    .select('total_sales')
-    .eq('location', location)
-    .gte('order_date', weekStart)
-    .lte('order_date', weekEnd)
+    const { data, error } = await supabase
+      .from(view)
+      .select('total_sales')
+      .eq('location', location)
+      .gte('order_date', weekStart)
+      .lte('order_date', weekEnd)
 
-  if (error) {
-    console.error('getRevenueSnapshot failed:', error.message)
-    return 0
+    if (error) {
+      console.error('getRevenueSnapshot failed:', error.message)
+      return 0
+    }
+
+    return ((data ?? []) as DailySalesRow[]).reduce(
+      (sum, row) => sum + Number(row.total_sales ?? 0),
+      0
+    )
   }
-
-  return ((data ?? []) as DailySalesRow[]).reduce(
-    (sum, row) => sum + Number(row.total_sales ?? 0),
-    0
-  )
-}
+)
 
 export async function getEfficiencySnapshot({
   weekStart,
@@ -283,8 +314,8 @@ export async function getEfficiencySnapshot({
   location: string
 }): Promise<EfficiencySnapshot> {
   const [totalSales, labor] = await Promise.all([
-    getRevenueSnapshot({ weekStart, location }),
-    getLaborSnapshot({ weekStart, location }),
+    getRevenueSnapshot(weekStart, location),
+    getLaborSnapshot(weekStart, location),
   ])
 
   return {
@@ -292,6 +323,29 @@ export async function getEfficiencySnapshot({
     revenueFactor: labor.totalCost > 0 ? labor.totalCost / totalSales : null,
     hasNullCost: labor.hasNullCost,
   }
+}
+
+export async function getEfficiencyTrend({
+  weekStart,
+  location,
+}: {
+  weekStart: string // Monday, 'YYYY-MM-DD' — the most recent (current) week
+  location: string
+}): Promise<EfficiencyTrendPoint[]> {
+  // oldest → newest: 4 weeks ago, 3 weeks ago, ..., the current week last
+  const weekStarts = [4, 3, 2, 1, 0].map((weeksAgo) => shiftWeek(weekStart, -weeksAgo))
+
+  const weeks = await Promise.all(
+    weekStarts.map((ws) => getEfficiencySnapshot({ weekStart: ws, location }))
+  )
+
+  return weekStarts.map((ws, i) => ({
+    weekStart: ws,
+    weekLabel: formatMonthDay(ws),
+    salesPerLaborHour: weeks[i].salesPerLaborHour,
+    revenueFactor: weeks[i].revenueFactor,
+    hasNullCost: weeks[i].hasNullCost,
+  }))
 }
 
 export async function getRevenueTrend({
@@ -317,83 +371,20 @@ export async function getRevenueTrend({
   }))
 }
 
-interface CmuOrderRow {
-  order_id: string
-  total: number | string | null
-}
-
-interface SquareTicketDailyRow {
+interface DailyTicketRow {
   ticket_count: number | string
   valid_ticket_sum: number | string | null
   valid_ticket_count: number | string
 }
 
-async function getTicketMetrics({
-  weekStart,
-  location,
-}: {
-  weekStart: string // Monday, 'YYYY-MM-DD'
-  location: string
-}): Promise<{ ticketCount: number; ticketAvg: number | null }> {
-  const supabase = await createClient()
-
-  if (CMU_LOCATIONS.includes(location)) {
-    // date_time is a real timestamp, not a date -- .lt() on the NEXT
-    // week's Monday (not .lte() on this week's Sunday) so an order placed
-    // any time on the last day of the week is still included. Using
-    // weekEnd here the way every date-only query in this app does would
-    // silently mean "midnight of the last day," dropping everything after.
-    const nextWeekStart = shiftWeek(weekStart, 1)
-
-    const { data, error } = await supabase
-      .from('order_details_cmu')
-      .select('order_id, total')
-      .eq('location', location)
-      .gte('date_time', weekStart)
-      .lt('date_time', nextWeekStart)
-
-    if (error) {
-      console.error('getTicketMetrics (CMU) failed:', error.message)
-      return { ticketCount: 0, ticketAvg: null }
-    }
-
-    const rows = (data ?? []) as CmuOrderRow[]
-    let validSum = 0
-    let validCount = 0
-
-    for (const row of rows) {
-      const total = row.total === null || row.total === undefined ? null : Number(row.total)
-      if (total !== null && total !== 0) {
-        validSum += total
-        validCount++
-      }
-    }
-
-    return {
-      ticketCount: rows.length, // every order counts here -- only the AVERAGE skips $0/NULL
-      ticketAvg: validCount > 0 ? validSum / validCount : null,
-    }
-  }
-
-  const weekEnd = getWeekEnd(weekStart)
-
-  const { data, error } = await supabase
-    .from('square_daily_tickets')
-    .select('ticket_count, valid_ticket_sum, valid_ticket_count')
-    .eq('location', location)
-    .gte('order_date', weekStart)
-    .lte('order_date', weekEnd)
-
-  if (error) {
-    console.error('getTicketMetrics (Square) failed:', error.message)
-    return { ticketCount: 0, ticketAvg: null }
-  }
-
+function sumDailyTickets(
+  rows: DailyTicketRow[]
+): { ticketCount: number; ticketAvg: number | null } {
   let ticketCount = 0
   let validSum = 0
   let validCount = 0
 
-  for (const row of (data ?? []) as SquareTicketDailyRow[]) {
+  for (const row of rows) {
     ticketCount += Number(row.ticket_count ?? 0)
     validSum += Number(row.valid_ticket_sum ?? 0)
     validCount += Number(row.valid_ticket_count ?? 0)
@@ -405,6 +396,32 @@ async function getTicketMetrics({
   }
 }
 
+async function getTicketMetrics({
+  weekStart,
+  location,
+}: {
+  weekStart: string // Monday, 'YYYY-MM-DD'
+  location: string
+}): Promise<{ ticketCount: number; ticketAvg: number | null }> {
+  const supabase = await createClient()
+  const weekEnd = getWeekEnd(weekStart)
+  const table = CMU_LOCATIONS.includes(location) ? 'cmu_daily_tickets' : 'square_daily_tickets'
+
+  const { data, error } = await supabase
+    .from(table)
+    .select('ticket_count, valid_ticket_sum, valid_ticket_count')
+    .eq('location', location)
+    .gte('order_date', weekStart)
+    .lte('order_date', weekEnd)
+
+  if (error) {
+    console.error(`getTicketMetrics (${table}) failed:`, error.message)
+    return { ticketCount: 0, ticketAvg: null }
+  }
+
+  return sumDailyTickets((data ?? []) as DailyTicketRow[])
+}
+
 async function getRevenueWeekMetrics({
   weekStart,
   location,
@@ -413,7 +430,7 @@ async function getRevenueWeekMetrics({
   location: string
 }): Promise<{ totalSales: number; ticketCount: number; ticketAvg: number | null }> {
   const [totalSales, ticketMetrics] = await Promise.all([
-    getRevenueSnapshot({ weekStart, location }),
+    getRevenueSnapshot(weekStart, location),
     getTicketMetrics({ weekStart, location }),
   ])
 
