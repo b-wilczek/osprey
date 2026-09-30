@@ -12,6 +12,54 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@layer base {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+  select,
+  textarea {
+    border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+    background-color: color-mix(in srgb, currentColor 6%, transparent);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid color-mix(in srgb, currentColor 60%, transparent);
+    outline-offset: 1px;
+  }
+}
+
+  button,
+  input[type="submit"],
+  input[type="button"] {
+    background-color: var(--foreground, #171717);
+    color: var(--background, #ffffff);
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  button:hover,
+  input[type="submit"]:hover,
+  input[type="button"]:hover {
+    opacity: 0.85;
+  }
+
+  button:focus-visible,
+  input[type="submit"]:focus-visible,
+  input[type="button"]:focus-visible {
+    outline: 2px solid color-mix(in srgb, currentColor 60%, transparent);
+    outline-offset: 2px;
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
