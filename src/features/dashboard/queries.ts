@@ -214,7 +214,7 @@ export const getLaborSnapshot = cache(
 
     const { data, error } = await supabase
       .from('timesheet_data')
-      .select('total_hours, cost, is_leave')
+      .select('total_hours, effective_cost, is_leave') // changed: cost → effective_cost
       .eq('location', location)
       .gte('timesheet_date', weekStart)
       .lte('timesheet_date', weekEnd)
@@ -233,10 +233,12 @@ export const getLaborSnapshot = cache(
 
       totalHours += Number(row.total_hours ?? 0)
 
-      if (row.cost === null || row.cost === undefined) {
+      // effective_cost = hours × salaried rate for anyone in salaried_employees,
+      // otherwise the raw Timesheet Cost
+      if (row.effective_cost === null || row.effective_cost === undefined) { // changed
         hasNullCost = true
       } else {
-        totalCost += Number(row.cost)
+        totalCost += Number(row.effective_cost) // changed
       }
     }
 
