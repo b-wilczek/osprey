@@ -3,6 +3,9 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Tell the browser the app supports both modes, so the native parts
+     (open dropdown lists, date pickers) follow the OS setting too */
+  color-scheme: light dark;
 }
 
 @theme inline {
@@ -28,7 +31,11 @@
     outline: 2px solid color-mix(in srgb, currentColor 60%, transparent);
     outline-offset: 1px;
   }
-}
+
+  option {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
 
   button,
   input[type="submit"],
@@ -59,6 +66,7 @@
     opacity: 0.5;
     cursor: not-allowed;
   }
+}
 
 @media (prefers-color-scheme: dark) {
   :root {
